@@ -1,0 +1,595 @@
+openapi: 3.1.0
+info:
+  title: Task Manager API
+  description: |
+    API for managing tasks with full CRUD operations.
+    
+    ## Security
+    - Users with ROLE_USER can only view and modify their own tasks
+    - Users with ROLE_ADMIN can view all tasks and are the only ones who can delete tasks
+    
+    ## Pagination
+    - Default page size is 10 tasks per page
+    - Default sort order is open tasks with most recent modification date first
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: support@collinsrj.com
+servers:
+  - url: /api/v1
+    description: Base API path
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: tasks
+    description: Task management operations
+
+paths:
+  /tasks:
+    get:
+      summary: List tasks
+      description: |
+        Returns a paginated list of tasks.
+        - Users with ROLE_USER can only see their own tasks
+        - Users with ROLE_ADMIN can see all tasks
+        - Default sort is open tasks with most recent modification date first
+      operationId: listTasks
+      tags:
+        - tasks
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+        - $ref: '#/components/parameters/SortParam'
+        - name: state
+          in: query
+          description: Filter tasks by state
+          required: false
+          schema:
+            type: string
+            enum: [OPEN, IN_PROGRESS, COMPLETED, CANCELLED]
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskPage'
+              example:
+                content:
+                  - id: "123e4567-e89b-12d3-a456-426614174000"
+                    title: "Complete project documentation"
+                    description: "Write comprehensive documentation for the API project"
+                    state: "OPEN"
+                    author: "john.doe@example.com"
+                    createdAt: "2025-03-15T10:30:00Z"
+                    modifiedAt: "2025-03-16T14:45:00Z"
+                    version: 1
+                  - id: "223e4567-e89b-12d3-a456-426614174001"
+                    title: "Review pull request"
+                    description: "Review and approve the latest pull request"
+                    state: "IN_PROGRESS"
+                    author: "john.doe@example.com"
+                    createdAt: "2025-03-14T09:15:00Z"
+                    modifiedAt: "2025-03-15T11:20:00Z"
+                    version: 2
+                pageable:
+                  pageNumber: 0
+                  pageSize: 10
+                  sort:
+                    sorted: true
+                    unsorted: false
+                totalElements: 42
+                totalPages: 5
+                first: true
+                last: false
+                size: 10
+                number: 0
+                numberOfElements: 10
+                empty: false
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    post:
+      summary: Create a new task
+      description: Creates a new task. The authenticated user will be set as the author.
+      operationId: createTask
+      tags:
+        - tasks
+      parameters:
+        - $ref: '#/components/parameters/RequestIdHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskCreateRequest'
+            example:
+              title: "Implement new feature"
+              description: "Add user profile customization options"
+              state: "OPEN"
+      responses:
+        '201':
+          description: Task created successfully
+          headers:
+            Location:
+              description: URL of the newly created task
+              schema:
+                type: string
+                format: uri
+                example: "/api/v1/tasks/123e4567-e89b-12d3-a456-426614174000"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskResponse'
+              example:
+                id: "123e4567-e89b-12d3-a456-426614174000"
+                title: "Implement new feature"
+                description: "Add user profile customization options"
+                state: "OPEN"
+                author: "john.doe@example.com"
+                createdAt: "2025-03-17T14:30:00Z"
+                modifiedAt: "2025-03-17T14:30:00Z"
+                version: 1
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /tasks/{taskId}:
+    parameters:
+      - name: taskId
+        in: path
+        description: ID of the task
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      summary: Get a task by ID
+      description: |
+        Returns a specific task by ID.
+        - Users with ROLE_USER can only access their own tasks
+        - Users with ROLE_ADMIN can access any task
+      operationId: getTask
+      tags:
+        - tasks
+      responses:
+        '200':
+          description: Successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskResponse'
+              example:
+                id: "123e4567-e89b-12d3-a456-426614174000"
+                title: "Complete project documentation"
+                description: "Write comprehensive documentation for the API project"
+                state: "OPEN"
+                author: "john.doe@example.com"
+                createdAt: "2025-03-15T10:30:00Z"
+                modifiedAt: "2025-03-16T14:45:00Z"
+                version: 1
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    put:
+      summary: Update a task
+      description: |
+        Updates an existing task.
+        - Users with ROLE_USER can only update their own tasks
+        - Users with ROLE_ADMIN can update any task
+        - Optimistic locking is implemented using the version field
+      operationId: updateTask
+      tags:
+        - tasks
+      parameters:
+        - $ref: '#/components/parameters/RequestIdHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskUpdateRequest'
+            example:
+              title: "Complete project documentation"
+              description: "Write comprehensive documentation for the API project with examples"
+              state: "IN_PROGRESS"
+              version: 1
+      responses:
+        '200':
+          description: Task updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TaskResponse'
+              example:
+                id: "123e4567-e89b-12d3-a456-426614174000"
+                title: "Complete project documentation"
+                description: "Write comprehensive documentation for the API project with examples"
+                state: "IN_PROGRESS"
+                author: "john.doe@example.com"
+                createdAt: "2025-03-15T10:30:00Z"
+                modifiedAt: "2025-03-17T15:20:00Z"
+                version: 2
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+    delete:
+      summary: Delete a task
+      description: |
+        Deletes a task.
+        - Only users with ROLE_ADMIN can delete tasks
+      operationId: deleteTask
+      tags:
+        - tasks
+      parameters:
+        - $ref: '#/components/parameters/RequestIdHeader'
+      responses:
+        '204':
+          description: Task deleted successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT Authorization header using the Bearer scheme
+
+  parameters:
+    PageParam:
+      name: page
+      in: query
+      description: Page number (0-based)
+      required: false
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+    SizeParam:
+      name: size
+      in: query
+      description: Number of items per page
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 10
+    SortParam:
+      name: sort
+      in: query
+      description: |
+        Sort criteria in the format `property,direction`.
+        Multiple sort criteria can be specified as separate parameters.
+        Default is `state,asc` and `modifiedAt,desc` (open tasks with most recent modification first)
+      required: false
+      schema:
+        type: array
+        items:
+          type: string
+          pattern: '^[a-zA-Z0-9]+,(asc|desc)$'
+          example: "modifiedAt,desc"
+        default: ["state,asc", "modifiedAt,desc"]
+      explode: true
+    RequestIdHeader:
+      name: X-Request-ID
+      in: header
+      description: Unique identifier for the request, used for tracing and idempotency
+      required: true
+      schema:
+        type: string
+        format: uuid
+        example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+
+  schemas:
+    TaskState:
+      type: string
+      enum:
+        - OPEN
+        - IN_PROGRESS
+        - COMPLETED
+        - CANCELLED
+      description: The current state of the task
+
+    TaskCreateRequest:
+      type: object
+      required:
+        - title
+        - state
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Title of the task
+        description:
+          type: string
+          maxLength: 2000
+          description: Detailed description of the task
+        state:
+          $ref: '#/components/schemas/TaskState'
+      additionalProperties: false
+
+    TaskUpdateRequest:
+      type: object
+      required:
+        - title
+        - state
+        - version
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Title of the task
+        description:
+          type: string
+          maxLength: 2000
+          description: Detailed description of the task
+        state:
+          $ref: '#/components/schemas/TaskState'
+        version:
+          type: integer
+          minimum: 0
+          description: Version number for optimistic locking
+      additionalProperties: false
+
+    TaskResponse:
+      type: object
+      required:
+        - id
+        - title
+        - state
+        - author
+        - createdAt
+        - modifiedAt
+        - version
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique identifier of the task
+        title:
+          type: string
+          description: Title of the task
+        description:
+          type: string
+          description: Detailed description of the task
+        state:
+          $ref: '#/components/schemas/TaskState'
+        author:
+          type: string
+          format: email
+          description: Email of the user who created the task
+        createdAt:
+          type: string
+          format: date-time
+          description: Date and time when the task was created
+        modifiedAt:
+          type: string
+          format: date-time
+          description: Date and time when the task was last modified
+        version:
+          type: integer
+          description: Version number for optimistic locking
+      additionalProperties: false
+
+    TaskPage:
+      type: object
+      required:
+        - content
+        - pageable
+        - totalElements
+        - totalPages
+        - first
+        - last
+        - size
+        - number
+        - numberOfElements
+        - empty
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/TaskResponse'
+          description: List of tasks for the current page
+        pageable:
+          type: object
+          properties:
+            pageNumber:
+              type: integer
+              description: Current page number (0-based)
+            pageSize:
+              type: integer
+              description: Number of items per page
+            sort:
+              type: object
+              properties:
+                sorted:
+                  type: boolean
+                  description: Whether the results are sorted
+                unsorted:
+                  type: boolean
+                  description: Whether the results are unsorted
+        totalElements:
+          type: integer
+          description: Total number of elements across all pages
+        totalPages:
+          type: integer
+          description: Total number of pages
+        first:
+          type: boolean
+          description: Whether this is the first page
+        last:
+          type: boolean
+          description: Whether this is the last page
+        size:
+          type: integer
+          description: Requested size of the page
+        number:
+          type: integer
+          description: Current page number (0-based)
+        numberOfElements:
+          type: integer
+          description: Actual number of elements in the current page
+        empty:
+          type: boolean
+          description: Whether the page is empty
+
+    Error:
+      type: object
+      required:
+        - timestamp
+        - status
+        - error
+        - message
+        - path
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          description: Time when the error occurred
+        status:
+          type: integer
+          description: HTTP status code
+        error:
+          type: string
+          description: Error type
+        message:
+          type: string
+          description: Error message
+        path:
+          type: string
+          description: Request path
+        requestId:
+          type: string
+          format: uuid
+          description: Request ID for tracing
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+                description: Field that caused the error
+              message:
+                type: string
+                description: Error message for the field
+          description: Validation errors
+
+  responses:
+    BadRequest:
+      description: Bad request - validation errors
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            timestamp: "2025-03-17T15:30:00Z"
+            status: 400
+            error: "Bad Request"
+            message: "Validation failed"
+            path: "/api/v1/tasks"
+            requestId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+            errors:
+              - field: "title"
+                message: "Title cannot be empty"
+              - field: "state"
+                message: "State must be one of [OPEN, IN_PROGRESS, COMPLETED, CANCELLED]"
+
+    Unauthorized:
+      description: Unauthorized - authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            timestamp: "2025-03-17T15:30:00Z"
+            status: 401
+            error: "Unauthorized"
+            message: "Authentication required"
+            path: "/api/v1/tasks"
+
+    Forbidden:
+      description: Forbidden - insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            timestamp: "2025-03-17T15:30:00Z"
+            status: 403
+            error: "Forbidden"
+            message: "Insufficient permissions to access this resource"
+            path: "/api/v1/tasks/123e4567-e89b-12d3-a456-426614174000"
+
+    NotFound:
+      description: Not found - resource does not exist
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            timestamp: "2025-03-17T15:30:00Z"
+            status: 404
+            error: "Not Found"
+            message: "Task with ID 123e4567-e89b-12d3-a456-426614174000 not found"
+            path: "/api/v1/tasks/123e4567-e89b-12d3-a456-426614174000"
+
+    Conflict:
+      description: Conflict - optimistic locking failure
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            timestamp: "2025-03-17T15:30:00Z"
+            status: 409
+            error: "Conflict"
+            message: "The task has been modified by another user. Please refresh and try again."
+            path: "/api/v1/tasks/123e4567-e89b-12d3-a456-426614174000"
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            timestamp: "2025-03-17T15:30:00Z"
+            status: 500
+            error: "Internal Server Error"
+            message: "An unexpected error occurred"
+            path: "/api/v1/tasks"
+            requestId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
