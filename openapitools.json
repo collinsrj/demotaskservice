@@ -3,5 +3,37 @@
   "spaces": 2,
   "generator-cli": {
     "version": "7.12.0"
+  },
+  "generators": {
+    "spring": {
+      "inputSpec": "src/main/resources/openapi/task-api.yml",
+      "generatorName": "spring",
+      "output": "target/generated-sources/openapi",
+      "library": "spring-boot",
+      "apiPackage": "com.collinsrj.demotaskservice.api",
+      "modelPackage": "com.collinsrj.demotaskservice.model",
+      "supportingFilesToGenerate": "ApiUtil.java",
+      "configOptions": {
+        "reactive": "true",
+        "interfaceOnly": "false",
+        "delegatePattern": "true",
+        "delegateMethod": "true",
+        "useSpringBoot3": "true",
+        "useOptional": "true",
+        "useJakartaEe": "true",
+        "openApiNullable": "false",
+        "skipDefaultInterface": "true",
+        "useTags": "true",
+        "java8": "false",
+        "java17": "false",
+        "sourceFolder": "src/gen/java",
+        "documentationProvider": "none",
+        "annotationLibrary": "none",
+        "useSwaggerUI": "false",
+        "useSpringController": "true",
+        "useResponseEntity": "true",
+        "returnSuccessCode": "true"
+      }
+    }
   }
 }

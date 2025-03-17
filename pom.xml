@@ -33,6 +33,24 @@
 	</properties>
 	<dependencies>
 		<dependency>
+			<groupId>org.openapitools</groupId>
+			<artifactId>jackson-databind-nullable</artifactId>
+			<version>0.2.6</version>
+		</dependency>
+		<dependency>
+			<groupId>org.springdoc</groupId>
+			<artifactId>springdoc-openapi-starter-webflux-ui</artifactId>
+			<version>2.5.0</version>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-validation</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>jakarta.validation</groupId>
+			<artifactId>jakarta.validation-api</artifactId>
+		</dependency>
+		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-actuator</artifactId>
 		</dependency>
@@ -88,6 +106,41 @@
 
 	<build>
 		<plugins>
+			<plugin>
+				<groupId>org.openapitools</groupId>
+				<artifactId>openapi-generator-maven-plugin</artifactId>
+				<version>7.12.0</version>
+				<executions>
+					<execution>
+						<goals>
+							<goal>generate</goal>
+						</goals>
+						<configuration>
+							<inputSpec>${project.basedir}/src/main/resources/openapi/task-api.yml</inputSpec>
+							<generatorName>spring</generatorName>
+							<library>spring-boot</library>
+							<apiPackage>com.collinsrj.demotaskservice.api</apiPackage>
+							<modelPackage>com.collinsrj.demotaskservice.model</modelPackage>
+							<supportingFilesToGenerate>ApiUtil.java</supportingFilesToGenerate>
+							<configOptions>
+								<reactive>true</reactive>
+								<interfaceOnly>false</interfaceOnly>
+								<useSpringBoot3>true</useSpringBoot3>
+								<useOptional>true</useOptional>
+								<useJakartaEe>true</useJakartaEe>
+								<openApiNullable>false</openApiNullable>								
+								<useTags>true</useTags>
+								<sourceFolder>src/gen/java</sourceFolder>
+								<documentationProvider>none</documentationProvider>
+								<annotationLibrary>none</annotationLibrary>								
+								<useSpringController>true</useSpringController>
+								<useResponseEntity>true</useResponseEntity>
+								<returnSuccessCode>true</returnSuccessCode>
+							</configOptions>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-dependency-plugin</artifactId>
