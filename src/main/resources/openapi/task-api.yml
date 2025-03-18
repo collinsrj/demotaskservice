@@ -65,7 +65,6 @@ paths:
                     author: "john.doe@example.com"
                     createdAt: "2025-03-15T10:30:00Z"
                     modifiedAt: "2025-03-16T14:45:00Z"
-                    version: 1
                   - id: "223e4567-e89b-12d3-a456-426614174001"
                     title: "Review pull request"
                     description: "Review and approve the latest pull request"
@@ -73,7 +72,6 @@ paths:
                     author: "john.doe@example.com"
                     createdAt: "2025-03-14T09:15:00Z"
                     modifiedAt: "2025-03-15T11:20:00Z"
-                    version: 2
                 pageable:
                   pageNumber: 0
                   pageSize: 10
@@ -122,6 +120,11 @@ paths:
                 type: string
                 format: uri
                 example: "/api/v1/tasks/123e4567-e89b-12d3-a456-426614174000"
+            ETag:
+              description: Entity tag for the created resource (used for optimistic concurrency control)
+              schema:
+                type: string
+                example: "\"33a64df551425fcc55e4d42a148795d9f25f89d4\""
           content:
             application/json:
               schema:
@@ -134,7 +137,6 @@ paths:
                 author: "john.doe@example.com"
                 createdAt: "2025-03-17T14:30:00Z"
                 modifiedAt: "2025-03-17T14:30:00Z"
-                version: 1
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -157,12 +159,19 @@ paths:
         Returns a specific task by ID.
         - Users with ROLE_USER can only access their own tasks
         - Users with ROLE_ADMIN can access any task
+        - Returns an ETag header for optimistic concurrency control
       operationId: getTask
       tags:
         - tasks
       responses:
         '200':
           description: Successful operation
+          headers:
+            ETag:
+              description: Entity tag for the returned resource (used for optimistic concurrency control)
+              schema:
+                type: string
+                example: "\"33a64df551425fcc55e4d42a148795d9f25f89d4\""
           content:
             application/json:
               schema:
@@ -175,7 +184,6 @@ paths:
                 author: "john.doe@example.com"
                 createdAt: "2025-03-15T10:30:00Z"
                 modifiedAt: "2025-03-16T14:45:00Z"
-                version: 1
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -190,12 +198,20 @@ paths:
         Updates an existing task.
         - Users with ROLE_USER can only update their own tasks
         - Users with ROLE_ADMIN can update any task
-        - Optimistic locking is implemented using the version field
+        - Optimistic locking is implemented using the ETag/If-Match mechanism
+        - Client must include the If-Match header with the ETag value received from a previous GET request
       operationId: updateTask
       tags:
         - tasks
       parameters:
         - $ref: '#/components/parameters/RequestIdHeader'
+        - name: If-Match
+          in: header
+          description: ETag from a previous GET response for this resource. Required for updates to prevent lost updates.
+          required: true
+          schema:
+            type: string
+            example: "\"33a64df551425fcc55e4d42a148795d9f25f89d4\""
       requestBody:
         required: true
         content:
@@ -206,10 +222,15 @@ paths:
               title: "Complete project documentation"
               description: "Write comprehensive documentation for the API project with examples"
               state: "IN_PROGRESS"
-              version: 1
       responses:
         '200':
           description: Task updated successfully
+          headers:
+            ETag:
+              description: New entity tag for the updated resource
+              schema:
+                type: string
+                example: "\"44b65df551425fcc55e4d42a148795d9f25f89e5\""
           content:
             application/json:
               schema:
@@ -222,7 +243,6 @@ paths:
                 author: "john.doe@example.com"
                 createdAt: "2025-03-15T10:30:00Z"
                 modifiedAt: "2025-03-17T15:20:00Z"
-                version: 2
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':
@@ -231,8 +251,8 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/NotFound'
-        '409':
-          $ref: '#/components/responses/Conflict'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
         '500':
           $ref: '#/components/responses/InternalServerError'
     delete:
@@ -263,7 +283,14 @@ components:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: JWT Authorization header using the Bearer scheme
+      description: |
+        JWT must contain the following claims:
+        - sub: The user's email (will be used as task author)
+        - scope: Space-separated list of scopes (e.g., "task:read task:write")
+        - roles: Array of user roles (e.g., ["ROLE_USER", "ROLE_ADMIN"])
+        - iat: Issued at time
+        - exp: Expiration time
+        - iss: Issuer
 
   parameters:
     PageParam:
@@ -345,7 +372,6 @@ components:
       required:
         - title
         - state
-        - version
       properties:
         title:
           type: string
@@ -358,10 +384,6 @@ components:
           description: Detailed description of the task
         state:
           $ref: '#/components/schemas/TaskState'
-        version:
-          type: integer
-          minimum: 0
-          description: Version number for optimistic locking
       additionalProperties: false
 
     TaskResponse:
@@ -373,7 +395,6 @@ components:
         - author
         - createdAt
         - modifiedAt
-        - version
       properties:
         id:
           type: string
@@ -399,9 +420,6 @@ components:
           type: string
           format: date-time
           description: Date and time when the task was last modified
-        version:
-          type: integer
-          description: Version number for optimistic locking
       additionalProperties: false
 
     TaskPage:
@@ -508,6 +526,26 @@ components:
                 description: Error message for the field
           description: Validation errors
 
+    Roles:
+      type: string
+      enum:
+        - ROLE_USER
+        - ROLE_ADMIN
+      description: |
+        Available roles:
+        - ROLE_USER: Regular user, can only access their own tasks
+        - ROLE_ADMIN: Administrator, can access all tasks and delete them
+
+    Scopes:
+      type: string
+      enum:
+        - task:read
+        - task:write
+      description: |
+        Available scopes:
+        - task:read: Allows reading tasks (within role permissions)
+        - task:write: Allows creating and updating tasks (within role permissions)
+
   responses:
     BadRequest:
       description: Bad request - validation errors
@@ -567,16 +605,16 @@ components:
             message: "Task with ID 123e4567-e89b-12d3-a456-426614174000 not found"
             path: "/api/v1/tasks/123e4567-e89b-12d3-a456-426614174000"
 
-    Conflict:
-      description: Conflict - optimistic locking failure
+    PreconditionFailed:
+      description: Precondition Failed - ETag validation failed (optimistic locking)
       content:
         application/json:
           schema:
             $ref: '#/components/schemas/Error'
           example:
             timestamp: "2025-03-17T15:30:00Z"
-            status: 409
-            error: "Conflict"
+            status: 412
+            error: "Precondition Failed"
             message: "The task has been modified by another user. Please refresh and try again."
             path: "/api/v1/tasks/123e4567-e89b-12d3-a456-426614174000"
 

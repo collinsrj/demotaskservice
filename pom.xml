@@ -130,10 +130,11 @@
 								<useJakartaEe>true</useJakartaEe>
 								<openApiNullable>false</openApiNullable>								
 								<useTags>true</useTags>
+								<java8>true</java8>
+								<java17>true</java17>
 								<sourceFolder>src/gen/java</sourceFolder>
 								<documentationProvider>none</documentationProvider>
-								<annotationLibrary>none</annotationLibrary>								
-								<useSpringController>true</useSpringController>
+								<annotationLibrary>none</annotationLibrary>																
 								<useResponseEntity>true</useResponseEntity>
 								<returnSuccessCode>true</returnSuccessCode>
 							</configOptions>

@@ -1,0 +1,28 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+- This is a SpringBoot project with the programming language Java. 
+- Maven is the build tool. 
+- SpringBoot 3.4.3 is the version of Spring Boot we are using. Do not change it. 
+- Java 23 is the version of Java we're using. Do not change it. 
+- Use the coding standards and conventions of Java 23 and Spring Framework 6.2.3. 
+- Use record for immutable types
+- favour functional programming
+- use annotations from SpringBoot, SpringSecurity and Lombok in preference to write code. For example, don't write getter and setter methods. Don't write constructors, use @RequiredArgsConstructor if possible.
+- do not use unstable or early access features e.g StringTemplate from Java 23.
+- follow security best practices
+- don't bring in unnecessary dependencies. Try and use capabilities provided natively by SpringBoot and Java.
+- do not duplicate code.
+- when calling an external API, resilience4j should be used to implement the circuit breaker and retry patterns.
+- Use Bean Validation annotations for input validation at the controller level.
+- Internationalization: Support multiple locales using message sources if required.
+- Follow RESTful principles:
+    Use appropriate HTTP methods (GET, POST, PUT, DELETE). Do not use PATCH
+    Design resource-based endpoints (e.g., /users/{id}).
+- Document APIs using OpenAPI 3.1.1. An API first approach should be taken. Interfaces and DTOs should be generated from the Open API specification. 
+- The OpenAPi specification should always be valid and checked against specification. 
+- Only the resource attributes accessible to the user should be in DTOs e.g. if the user cannot set the createdBy, updatedAt, createdAt or ID attributes, these should not be available in the DTO used for POST requests
+- Optimistic locking should be implemented. 
+- The application will run in different environments, locally, dev, stage and prod. Use env variables and profiles.
